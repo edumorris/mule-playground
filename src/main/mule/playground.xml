@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="ce9c974e-7a1c-4ce1-bc44-588ab7015104" >
+		<http:listener-connection host="0.0.0.0" port="8082">
+		</http:listener-connection>
+	</http:listener-config>
+	<http:listener-config name="HTTP_Listener_config1" doc:name="HTTP Listener config" doc:id="b19deb24-2ee1-40f8-b486-b0c4de1347e1" >
+		<http:listener-connection host="0.0.0.0" port="8081" protocol="HTTPS">
+			<tls:context >
+				<tls:trust-store path="certificates/server-truststore.jks" password="password" type="jks" />
+				<tls:key-store type="jks" path="certificates/server-keystore.jks" alias="mule-server" keyPassword="password" password="password" />
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration_OneWay" doc:name="HTTP Request configuration" doc:id="5d431dc1-74a5-46aa-a872-99a9ac3aaea2" >
+		<http:request-connection host="127.0.0.1" port="8082"/>
+	</http:request-config>
+	<http:listener-config name="HTTP_Config_mTLS" doc:name="HTTP Listener config" doc:id="ea9a392f-31dd-437d-a882-c13ddd92407a" >
+		<http:listener-connection protocol="HTTPS" host="0.0.0.0" port="8085" >
+			<tls:context >
+				<tls:trust-store path="certificates/others/server-truststore.jks" password="password" type="jks" />
+				<tls:key-store type="jks" path="certificates/others/server-keystore.jks" alias="mule-server" keyPassword="password" password="password" />
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration_mTLS" doc:name="HTTP Request configuration" doc:id="da5e92b4-2f27-497d-a7fd-daf4987f1020" >
+		<http:request-connection host="localhost" port="8085" protocol="HTTPS">
+			<tls:context >
+				<tls:trust-store path="certificates/others/client-truststore.jks" password="password" type="jks" />
+				<tls:key-store type="jks" path="certificates/others/client-keystore.jks" alias="mule-client" keyPassword="password" password="password" />
+			</tls:context>
+		</http:request-connection>
+	</http:request-config>
+	<http:listener-config name="HTTP_Listener_config2" doc:name="HTTP Listener config" doc:id="650889c9-80c0-4e90-a78c-ebfd81eac306" >
+		<http:listener-connection host="0.0.0.0" port="8084" />
+	</http:listener-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="ffa3ee96-c2d9-409b-a08a-34e855c11b50" >
+		<http:request-connection host="localhost" port="8081" protocol="HTTPS">
+			<tls:context >
+				<tls:trust-store path="certificates/client-truststore.jks" password="password" type="jks" />
+				<tls:key-store type="jks" path="certificates/client-keystore" alias="mule-client" keyPassword="password" password="password" />
+			</tls:context>
+		</http:request-connection>
+	</http:request-config>
+	<flow name="serverFlow-TwoWaySSL" doc:id="0afc2cb0-0e51-42e2-af72-db6fd1a6e82c" >
+		<http:listener doc:name="Listener" doc:id="f24f5496-33c2-4f48-b3a4-dbece13c75fb" config-ref="HTTP_Config_mTLS" path="/server-mtls"/>
+		<set-payload value='#[output application/json&#10;---&#10;{&#10;	"message": "mTLS acheived"&#10;}]' doc:name="Set Payload" doc:id="a970fe36-6309-4563-bd90-1033107d69ca" />
+	</flow>
+	<flow name="serverFlow-OneWaySSL" doc:id="df5ae7af-ebd0-45a2-b7d9-e8ab64a33ead" >
+		<http:listener doc:name="Listener" doc:id="2ac6176f-2060-4637-a35b-694b5cc88ff8" config-ref="HTTP_Listener_config" path="/server"/>
+		<set-payload value='#[output application/json&#10;---&#10;{&#10;	"message": "One Way SSL achieved"&#10;}]' doc:name="Set Payload" doc:id="e70037d0-af39-45e3-b511-897f9d6a3d32" />
+	</flow>
+	<flow name="clientFlow" doc:id="ea37a718-64e3-416e-a688-4966af1225e1" >
+		<http:listener doc:name="Listener" doc:id="94fe66a7-ee46-49db-95f5-3eb0cb2b944b" config-ref="HTTP_Listener_config1" path="/client"/>
+		<choice doc:name="Choice" doc:id="8cae9bde-374c-43fa-9f16-1f23da0f5c88" >
+			<when expression="#[attributes.queryParams.security=='mtls']">
+				<http:request method="GET" doc:name="Request" doc:id="ba53b193-5d5f-4983-a86e-9168f2eddf98" config-ref="HTTP_Request_configuration_mTLS" path="/server-mtls"/>
+			</when>
+			<otherwise >
+				<http:request method="GET" doc:name="Request" doc:id="58f7b0dc-c627-414e-a81a-1a0e35677640" config-ref="HTTP_Request_configuration_OneWay" path="/server" />
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="0ae2c184-e4d1-4a8b-8355-34eae290b6ea" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="af487ae2-133c-4038-a2e0-a932c9f2fea0" >
+				<ee:transform doc:name="Transform Message" doc:id="c49b07c7-231d-4b68-93a3-0f11e1d10c6b" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "request failed"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="clientFlowCall" doc:id="16a6a0f6-0eb4-4a35-9c8c-5e39bbc6aae1" >
+		<http:listener doc:name="Listener" doc:id="5dbbb7aa-b9e1-41b1-bca7-5db5efaf858c" config-ref="HTTP_Listener_config2" path="/client-call"/>
+		<http:request method="GET" doc:name="Request" doc:id="3ded9f3a-c3ea-4d2d-82cc-fd869b1df0b0" config-ref="HTTP_Request_configuration" path="/client" responseTimeout="300000">
+			<http:query-params ><![CDATA[#[attributes.queryParams]]]></http:query-params>
+		</http:request>
+	</flow>
+</mule>
